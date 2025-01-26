@@ -8,7 +8,7 @@ import cvxopt
 from cvxopt import matrix
 # from gfedplat.algorithm.common.utils import get_FedLF_d_layers
 
-
+# 层问题的求解
 def cvxopt_solve_qp(P, q, G=None, h=None, A=None, b=None):
 
     P = 0.5 * (P + P.T)  # make sure P is symmetric
@@ -30,6 +30,7 @@ def cvxopt_solve_qp(P, q, G=None, h=None, A=None, b=None):
     return np.array(sol['x']).reshape((P.shape[1],)), optimal_flag, cal_time
 
 
+# 传入完整的求解向量
 def setup_qp_and_solve(vec, device):
     # use cvxopt to solve QP
     P = vec @ (vec.T)
@@ -67,6 +68,7 @@ def get_FedLF_d_layers(grads, value, add_grads, prefer_vec, Loc_list, device, mo
     h_vec = (value @ prefer_vec * value / value_norm - prefer_vec * value_norm) / (value_norm**2)
     h_vec = h_vec.reshape(1, -1)
 
+    # 意味着只有一个客户并且无缺席
     if grads.shape[0] == 1 and add_grads is None:
         d = grads.reshape(-1)
         return d, Q, fair_grad
@@ -76,7 +78,7 @@ def get_FedLF_d_layers(grads, value, add_grads, prefer_vec, Loc_list, device, mo
     if return_fair_grad:
         fair_grad = []
     cal_time_sum = 0.0
-    for i in range(len(Loc_list)):
+    for i in range(len(Loc_list)):  # 每个本地模型的参数索引范围（i表示客户个数）
         Q_layer = Q[:, Loc_list[i]]
         # scale each norm
         Q_layer_norm = torch.norm(Q_layer, dim=1)
@@ -87,7 +89,7 @@ def get_FedLF_d_layers(grads, value, add_grads, prefer_vec, Loc_list, device, mo
         fair_grad_layer = fair_grad_layer / torch.norm(fair_grad_layer) * miu
         Q_layer = torch.cat((Q_layer, fair_grad_layer))
         # add history
-        if add_grads is not None:
+        if add_grads is not None:  # add grads存放的即是先验的估计参数
             add_grad_layer = add_grads[:, Loc_list[i]]
             add_grad_layer = add_grad_layer / torch.norm(add_grad_layer, dim=1).reshape(-1, 1) * miu
             Q_layer = torch.vstack([Q_layer, add_grad_layer])
@@ -167,15 +169,15 @@ class FedLF(fp.Algorithm):
             if item is not None:
                 total_client_num += 1
         if total_client_num > self.online_client_num:  # 排除total_client_num = online个体数的情况，因为此时并没有用户掉线
-            tau = int(total_client_num / self.online_client_num)
+            tau = int(total_client_num / self.online_client_num)  # period记录
             for client_id, item in enumerate(self.client_online_round_history):
-                if item is not None:
+                if item is not None:  # 只考虑缺席轮次在这个范围内的客户
                     if self.current_comm_round - item <= tau:  # 例如当前t=100, tau=10, 则考虑91-99代的历史用户的梯度
                         if client_id not in client_id_list:  # 排除当代在线的用户
                             add_grads.append(self.client_gradient_history[client_id])
         if len(add_grads) == 0:
             add_grads = None
-        else:
+        else:  # 等价于append
             add_grads = torch.vstack(add_grads)
             self.used_history_flag = True
 

@@ -27,8 +27,8 @@ class Module:
         self.Loc_reshape_list = []
         self.Loc_list = []
         for i, p in enumerate(self.model.parameters()):
-            param_num = p.numel()
-            Loc = torch.arange(currentIdx, currentIdx + param_num, 1)
+            param_num = p.numel() # 扁平化参数存储（将全部模型压缩成一维contact）
+            Loc = torch.arange(currentIdx, currentIdx + param_num, 1)  # 包含end的索引范围
             self.Loc_list.append(Loc)
             self.Loc_reshape_list.append(Loc.reshape(p.data.shape))
             currentIdx += param_num
